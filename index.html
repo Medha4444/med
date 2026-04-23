@@ -5,88 +5,157 @@
   <title>Simple Weather App</title>
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <style>
+    :root{
+      --bg1:#09121f; --bg2:#0b2a3a; --card:#0f2633; --accent:#00d4ff; --accent2:#4facfe; --muted:rgba(255,255,255,0.7);
+    }
+    html,body{height:100%;margin:0}
     body {
-      font-family: Arial, sans-serif;
-      background: linear-gradient(to right, #4facfe, #00f2fe);
-      color: #fff;
-      text-align: center;
-      padding: 50px;
+      font-family: Inter, Arial, sans-serif;
+      background: radial-gradient( circle at 10% 10%, #06202b 0%, #061826 30%, #04202a 100% );
+      color: #e6f7ff;
+      display:flex;
+      align-items:center;
+      justify-content:center;
+      padding:30px;
     }
 
     .app {
-      background: rgba(0,0,0,0.3);
-      padding: 20px;
-      border-radius: 10px;
-      max-width: 400px;
-      margin: auto;
+      background: linear-gradient(180deg, rgba(255,255,255,0.03), rgba(0,0,0,0.15));
+      border: 1px solid rgba(255,255,255,0.06);
+      box-shadow: 0 10px 30px rgba(2,6,23,0.6);
+      padding: 28px;
+      border-radius: 14px;
+      width: 420px;
+      max-width: calc(100% - 40px);
+      backdrop-filter: blur(6px);
+      position:relative;
     }
 
-    input {
-      padding: 10px;
-      width: 70%;
-      border: none;
-      border-radius: 5px;
-      margin-right: 5px;
+    .top {
+      display:flex; gap:8px; align-items:center; justify-content:center; margin-bottom:14px;
     }
 
-    button {
-      padding: 10px;
-      border: none;
-      background: #ff9800;
-      color: white;
-      border-radius: 5px;
-      cursor: pointer;
+    input#city{
+      padding:12px 14px;
+      flex:1;
+      background: rgba(255,255,255,0.03);
+      border-radius:10px;
+      border:1px solid rgba(255,255,255,0.04);
+      color:var(--muted);
+      outline:none;
+    }
+    button#search{
+      padding:10px 14px;
+      background: linear-gradient(90deg,var(--accent),var(--accent2));
+      color:#01202a;
+      border:none;border-radius:10px; cursor:pointer; font-weight:600;
+      box-shadow: 0 6px 18px rgba(0,116,153,0.12);
     }
 
-    .weather {
-      margin-top: 20px;
-    }
+    .suggestions{display:flex;flex-wrap:wrap;gap:8px;margin:10px 0 0;justify-content:center}
+    .chip{background:rgba(255,255,255,0.03);padding:6px 10px;border-radius:999px;font-size:13px;cursor:pointer;border:1px solid rgba(255,255,255,0.03)}
+
+    .weather {margin-top:18px; text-align:left}
+    .card{display:flex;gap:12px;align-items:center}
+    .left{flex:1}
+    .city{font-size:18px;margin:0 0 6px 0}
+    .meta{color:var(--muted);font-size:13px;margin:0}
+    .temp{font-size:48px;font-weight:700;margin:4px 0}
+    .desc{font-size:15px;color:var(--muted);margin:6px 0}
+    .icon{width:96px;height:96px}
+
+    .details{display:flex;gap:12px;margin-top:10px;color:var(--muted);font-size:13px}
+    .detail{flex:1;background:rgba(255,255,255,0.02);padding:8px;border-radius:8px;text-align:center}
+
+    .error{color:#ffb3b3;background:rgba(255,0,0,0.03);padding:8px;border-radius:6px;text-align:center}
+    .note{font-size:12px;color:var(--muted);text-align:center;margin-top:10px}
+
+    @media (max-width:440px){.temp{font-size:40px}.icon{width:72px;height:72px}}
   </style>
 </head>
 <body>
 
 <div class="app">
-  <h2>🌦 Weather App</h2>
-  <input type="text" id="city" placeholder="Enter city name">
-  <button onclick="getWeather()">Search</button>
+  <h2 style="text-align:center;margin:0 0 14px 0">🌦 Weather</h2>
+  <div class="top">
+    <input id="city" placeholder="Enter city name (e.g. London)" autocomplete="off">
+    <button id="search">Search</button>
+  </div>
+
+  <div class="suggestions">
+    <div class="chip">London</div>
+    <div class="chip">New York</div>
+    <div class="chip">Tokyo</div>
+    <div class="chip">Sydney</div>
+    <div class="chip">Paris</div>
+  </div>
 
   <div class="weather" id="weather"></div>
+  <div class="note">Note: add your OpenWeather API key in the script (apiKey variable).</div>
 </div>
 
 <script>
-  const apiKey = "YOUR_API_KEY_HERE";
+  const apiKey = "YOUR_API_KEY_HERE"; // <-- replace with your OpenWeather API key
 
-  async function getWeather() {
-    const city = document.getElementById("city").value;
-    const weatherDiv = document.getElementById("weather");
+  const input = document.getElementById('city');
+  const btn = document.getElementById('search');
+  const weatherDiv = document.getElementById('weather');
 
-    if (!city) {
-      weatherDiv.innerHTML = "Please enter a city name.";
-      return;
-    }
+  document.querySelectorAll('.chip').forEach(c => c.addEventListener('click', () => {
+    input.value = c.textContent;
+    getWeather();
+  }));
 
-    weatherDiv.innerHTML = "Loading...";
+  input.addEventListener('keydown', (e) => {
+    if (e.key === 'Enter') getWeather();
+  });
+  btn.addEventListener('click', getWeather);
 
-    try {
-      const res = await fetch(
-        `https://api.openweathermap.org/data/2.5/weather?q=${city}&units=metric&appid=${apiKey}`
-      );
+  function showLoading(){ weatherDiv.innerHTML = '<div class="meta">Loading...</div>'; }
+
+  async function getWeather(){
+    const city = input.value.trim();
+    if (!city){ weatherDiv.innerHTML = '<div class="error">Please enter a city name.</div>'; return; }
+
+    showLoading();
+
+    try{
+      const urlCity = encodeURIComponent(city);
+      const res = await fetch(`https://api.openweathermap.org/data/2.5/weather?q=${urlCity}&units=metric&appid=${apiKey}`);
       const data = await res.json();
 
-      if (data.cod !== 200) {
-        weatherDiv.innerHTML = "City not found.";
+      if (!res.ok){
+        // API returned an error like 404 - show the message if available
+        const msg = data && data.message ? data.message : 'City not found.';
+        weatherDiv.innerHTML = `<div class="error">${msg}</div>`;
         return;
       }
 
+      const iconUrl = `https://openweathermap.org/img/wn/${data.weather[0].icon}@2x.png`;
+      const updated = new Date(data.dt * 1000).toLocaleTimeString();
+
       weatherDiv.innerHTML = `
-        <h3>${data.name}, ${data.sys.country}</h3>
-        <p><strong>${data.weather[0].main}</strong> - ${data.weather[0].description}</p>
-        <p>🌡 Temp: ${data.main.temp} °C</p>
-        <p>💧 Humidity: ${data.main.humidity}%</p>
-        <p>🌬 Wind: ${data.wind.speed} m/s</p>
+        <div class="card">
+          <div class="left">
+            <p class="city">${data.name}, ${data.sys.country}</p>
+            <p class="meta">Updated: ${updated}</p>
+            <div class="temp">${Math.round(data.main.temp)}°C</div>
+            <div class="desc"><strong>${data.weather[0].main}</strong> — ${data.weather[0].description}</div>
+          </div>
+          <div class="right">
+            <img class="icon" src="${iconUrl}" alt="icon">
+          </div>
+        </div>
+        <div class="details">
+          <div class="detail">💧 Humidity<br><strong>${data.main.humidity}%</strong></div>
+          <div class="detail">🌬 Wind<br><strong>${data.wind.speed} m/s</strong></div>
+          <div class="detail">📈 Feels like<br><strong>${Math.round(data.main.feels_like)}°C</strong></div>
+        </div>
       `;
-    } catch (err) {
-      weatherDiv.innerHTML = "Error fetching weather data.";
+
+    }catch(err){
+      console.error(err);
+      weatherDiv.innerHTML = '<div class="error">Error fetching weather data. Check your network and API key.</div>';
     }
   }
 </script>
